@@ -1,0 +1,61 @@
+name: Terraform Dev Apply
+
+# main にマージされ、dev環境のTerraformコードが変更された場合に、
+# dev環境のVPC/ALB/ECS Fargate/DocumentDBを自動で terraform apply する。
+on:
+  push:
+    branches: [main]
+    paths:
+      - terraform/environments/dev/**
+      - .github/workflows/terraform-dev-apply.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+
+# 同時実行によるstate競合を防ぐ
+concurrency:
+  group: terraform-dev-apply
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    # リポジトリの Settings > Environments > dev で必須レビュアーを設定
+    # すれば、apply前に手動承認を挟むことも可能(既定では承認不要)。
+    environment: dev
+    defaults:
+      run:
+        working-directory: terraform/environments/dev
+    env:
+      # g5自身はCognitoユーザープールを持たず、github.com/k07g/g4 が
+      # 所有するdev環境ユーザープールのアクセストークンを検証するだけ
+      # なので、そのARNを変数として渡す(terraform/README.md参照)。
+      TF_VAR_cognito_user_pool_arn: ${{ vars.COGNITO_USER_POOL_ARN }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEV_TERRAFORM_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-northeast-1' }}
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        run: |
+          terraform init -input=false \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=g5/dev/terraform.tfstate" \
+            -backend-config="region=${{ vars.AWS_REGION || 'ap-northeast-1' }}"
+
+      - name: Terraform Plan
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform Apply
+        run: terraform apply -input=false -auto-approve tfplan
