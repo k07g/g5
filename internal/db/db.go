@@ -1,19 +1,22 @@
 package db
 
 import (
-	"database/sql"
+	"context"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-func Connect(databaseURL string) (*sql.DB, error) {
-	conn, err := sql.Open("pgx", databaseURL)
+// Connect opens a MongoDB client for uri and returns a handle to database
+// dbName, failing fast if the deployment isn't reachable.
+func Connect(ctx context.Context, uri, dbName string) (*mongo.Client, *mongo.Database, error) {
+	client, err := mongo.Connect(options.Client().ApplyURI(uri))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if err := conn.Ping(); err != nil {
-		conn.Close()
-		return nil, err
+	if err := client.Ping(ctx, nil); err != nil {
+		_ = client.Disconnect(ctx)
+		return nil, nil, err
 	}
-	return conn, nil
+	return client, client.Database(dbName), nil
 }

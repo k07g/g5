@@ -33,15 +33,11 @@ func main() {
 		verifier = cognitoVerifier
 	}
 
-	database, err := db.Connect(cfg.DatabaseURL)
+	mongoClient, database, err := db.Connect(ctx, cfg.MongoURI, cfg.MongoDatabase)
 	if err != nil {
 		log.Fatalf("failed to connect to database: %v", err)
 	}
-	defer database.Close()
-
-	if err := db.Migrate(ctx, database); err != nil {
-		log.Fatalf("failed to run migrations: %v", err)
-	}
+	defer mongoClient.Disconnect(ctx)
 
 	careerSheets := db.NewCareerSheetRepository(database)
 	handler := api.NewHandler(careerSheets)

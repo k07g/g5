@@ -1,22 +1,21 @@
 services:
-  postgres:
-    image: postgres:16-alpine
+  mongo:
+    image: mongo:8
     environment:
-      POSTGRES_USER: g5
-      POSTGRES_PASSWORD: g5
-      POSTGRES_DB: g5
+      MONGO_INITDB_ROOT_USERNAME: g5
+      MONGO_INITDB_ROOT_PASSWORD: g5
+      MONGO_INITDB_DATABASE: g5
     ports:
-      # Host port 5434 avoids clashing with a Postgres instance that may
-      # already be listening on the default 5432, or with g4's own local
-      # instance on 5433 (github.com/k07g/g4).
-      - "5434:5432"
+      # Host port 27018 avoids clashing with a MongoDB instance that may
+      # already be listening on the default 27017 on the host machine.
+      - "27018:27017"
     volumes:
-      - g5-postgres-data:/var/lib/postgresql/data
+      - g5-mongo-data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U g5 -d g5"]
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  g5-postgres-data:
+  g5-mongo-data:

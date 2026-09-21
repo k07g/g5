@@ -2,77 +2,81 @@ package db
 
 import (
 	"context"
-	"database/sql"
-	"encoding/json"
 	"errors"
+	"time"
+
+	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/mongo"
+	"go.mongodb.org/mongo-driver/v2/mongo/options"
 
 	"github.com/k07g/g5/internal/models"
 )
 
 var ErrCareerSheetNotFound = errors.New("career sheet not found")
 
-type CareerSheetRepository struct {
-	db *sql.DB
+const careerSheetsCollection = "career_sheets"
+
+// careerSheetDocument is how a career sheet is stored: one document per
+// user, keyed by the caller's Cognito sub as the MongoDB _id (so the id
+// itself guarantees per-user uniqueness, with no separate index needed).
+type careerSheetDocument struct {
+	Data      models.CareerSheet `bson:"data"`
+	CreatedAt time.Time          `bson:"created_at"`
+	UpdatedAt time.Time          `bson:"updated_at"`
 }
 
-func NewCareerSheetRepository(db *sql.DB) *CareerSheetRepository {
-	return &CareerSheetRepository{db: db}
+type CareerSheetRepository struct {
+	collection *mongo.Collection
+}
+
+func NewCareerSheetRepository(database *mongo.Database) *CareerSheetRepository {
+	return &CareerSheetRepository{collection: database.Collection(careerSheetsCollection)}
 }
 
 // Get returns the career sheet belonging to cognitoSub, or
 // ErrCareerSheetNotFound if none has been saved yet.
 func (r *CareerSheetRepository) Get(ctx context.Context, cognitoSub string) (*models.CareerSheet, error) {
-	const q = `SELECT data FROM career_sheets WHERE cognito_sub = $1`
-
-	var raw []byte
-	err := r.db.QueryRowContext(ctx, q, cognitoSub).Scan(&raw)
-	if errors.Is(err, sql.ErrNoRows) {
+	var doc careerSheetDocument
+	err := r.collection.FindOne(ctx, bson.M{"_id": cognitoSub}).Decode(&doc)
+	if errors.Is(err, mongo.ErrNoDocuments) {
 		return nil, ErrCareerSheetNotFound
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	var sheet models.CareerSheet
-	if err := json.Unmarshal(raw, &sheet); err != nil {
-		return nil, err
-	}
-	sheet.Normalize()
-	return &sheet, nil
+	doc.Data.Normalize()
+	return &doc.Data, nil
 }
 
 // Upsert replaces the entire career sheet for cognitoSub, creating it if it
 // doesn't exist yet. The frontend always sends the full document (it has
 // no partial-update UI), so a whole-document replace is all this needs.
+// UpdateOne with $set/$setOnInsert is used (rather than ReplaceOne) so
+// created_at is preserved across updates instead of being reset every save.
 func (r *CareerSheetRepository) Upsert(ctx context.Context, cognitoSub string, sheet *models.CareerSheet) error {
-	raw, err := json.Marshal(sheet)
-	if err != nil {
-		return err
+	now := time.Now()
+	update := bson.M{
+		"$set": bson.M{
+			"data":       sheet,
+			"updated_at": now,
+		},
+		"$setOnInsert": bson.M{
+			"created_at": now,
+		},
 	}
 
-	const q = `
-		INSERT INTO career_sheets (cognito_sub, data)
-		VALUES ($1, $2)
-		ON CONFLICT (cognito_sub)
-		DO UPDATE SET data = EXCLUDED.data, updated_at = now()
-	`
-	_, err = r.db.ExecContext(ctx, q, cognitoSub, raw)
+	_, err := r.collection.UpdateOne(ctx, bson.M{"_id": cognitoSub}, update, options.UpdateOne().SetUpsert(true))
 	return err
 }
 
 // Delete removes the career sheet for cognitoSub, if any.
 func (r *CareerSheetRepository) Delete(ctx context.Context, cognitoSub string) error {
-	const q = `DELETE FROM career_sheets WHERE cognito_sub = $1`
-
-	res, err := r.db.ExecContext(ctx, q, cognitoSub)
+	res, err := r.collection.DeleteOne(ctx, bson.M{"_id": cognitoSub})
 	if err != nil {
 		return err
 	}
-	n, err := res.RowsAffected()
-	if err != nil {
-		return err
-	}
-	if n == 0 {
+	if res.DeletedCount == 0 {
 		return ErrCareerSheetNotFound
 	}
 	return nil

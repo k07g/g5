@@ -17,10 +17,11 @@ func setEnv(t *testing.T, vars map[string]string) {
 
 func baseCognitoEnv() map[string]string {
 	return map[string]string{
-		"PORT":          "",
-		"AUTH_PROVIDER": "",
-		"AWS_REGION":    "ap-northeast-1",
-		"DATABASE_URL":  "postgres://localhost/g5",
+		"PORT":             "",
+		"AUTH_PROVIDER":    "",
+		"AWS_REGION":       "ap-northeast-1",
+		"MONGODB_URI":      "mongodb://localhost:27017",
+		"MONGODB_DATABASE": "g5",
 	}
 }
 
@@ -41,8 +42,11 @@ func TestLoad_CognitoProviderSuccess(t *testing.T) {
 	if cfg.AWSRegion != "ap-northeast-1" {
 		t.Errorf("AWSRegion = %q, want %q", cfg.AWSRegion, "ap-northeast-1")
 	}
-	if cfg.DatabaseURL != "postgres://localhost/g5" {
-		t.Errorf("DatabaseURL = %q, want %q", cfg.DatabaseURL, "postgres://localhost/g5")
+	if cfg.MongoURI != "mongodb://localhost:27017" {
+		t.Errorf("MongoURI = %q, want %q", cfg.MongoURI, "mongodb://localhost:27017")
+	}
+	if cfg.MongoDatabase != "g5" {
+		t.Errorf("MongoDatabase = %q, want %q", cfg.MongoDatabase, "g5")
 	}
 }
 
@@ -62,10 +66,11 @@ func TestLoad_CustomPort(t *testing.T) {
 
 func TestLoad_MemoryProviderSuccess(t *testing.T) {
 	setEnv(t, map[string]string{
-		"PORT":          "",
-		"AUTH_PROVIDER": "memory",
-		"AWS_REGION":    "",
-		"DATABASE_URL":  "postgres://localhost/g5",
+		"PORT":             "",
+		"AUTH_PROVIDER":    "memory",
+		"AWS_REGION":       "",
+		"MONGODB_URI":      "mongodb://localhost:27017",
+		"MONGODB_DATABASE": "g5",
 	})
 
 	cfg, err := Load()
@@ -93,21 +98,31 @@ func TestLoad_MissingRequiredVars(t *testing.T) {
 			wantErr: "AWS_REGION",
 		},
 		{
-			name: "missing DATABASE_URL",
+			name: "missing MONGODB_URI",
 			env: func() map[string]string {
 				e := baseCognitoEnv()
-				e["DATABASE_URL"] = ""
+				e["MONGODB_URI"] = ""
 				return e
 			}(),
-			wantErr: "DATABASE_URL",
+			wantErr: "MONGODB_URI",
 		},
 		{
-			name: "missing DATABASE_URL for memory provider",
+			name: "missing MONGODB_DATABASE",
+			env: func() map[string]string {
+				e := baseCognitoEnv()
+				e["MONGODB_DATABASE"] = ""
+				return e
+			}(),
+			wantErr: "MONGODB_DATABASE",
+		},
+		{
+			name: "missing MONGODB_URI for memory provider",
 			env: map[string]string{
-				"AUTH_PROVIDER": "memory",
-				"DATABASE_URL":  "",
+				"AUTH_PROVIDER":    "memory",
+				"MONGODB_URI":      "",
+				"MONGODB_DATABASE": "g5",
 			},
-			wantErr: "DATABASE_URL",
+			wantErr: "MONGODB_URI",
 		},
 	}
 
