@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -10,21 +9,11 @@ import (
 	"github.com/k07g/g5/internal/models"
 )
 
-// CareerSheetStore is the storage dependency Handler needs. db.CareerSheetRepository
-// (backed by MongoDB) is the production implementation; tests use an
-// in-memory fake so handler behavior can be verified without a live
-// database, the same way AuthMiddleware is tested against auth.MemoryVerifier.
-type CareerSheetStore interface {
-	Get(ctx context.Context, cognitoSub string) (*models.CareerSheet, error)
-	Upsert(ctx context.Context, cognitoSub string, sheet *models.CareerSheet) error
-	Delete(ctx context.Context, cognitoSub string) error
-}
-
 type Handler struct {
-	careerSheets CareerSheetStore
+	careerSheets *db.CareerSheetRepository
 }
 
-func NewHandler(careerSheets CareerSheetStore) *Handler {
+func NewHandler(careerSheets *db.CareerSheetRepository) *Handler {
 	return &Handler{careerSheets: careerSheets}
 }
 

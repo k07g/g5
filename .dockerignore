@@ -1,0 +1,7 @@
+.git
+.github
+terraform
+*.md
+.env
+.env.*
+docker-compose.yml

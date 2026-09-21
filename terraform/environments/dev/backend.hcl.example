@@ -1,0 +1,11 @@
+# ローカルからS3 backendでdev環境を操作する場合に使う設定例。
+# `cp backend.hcl.example backend.hcl` した上で値を実際のものに書き換え、
+# `terraform init -backend-config=backend.hcl` を実行する。
+# 値は terraform/bootstrap の apply 出力(state_bucket_name)を使う。
+# backend.hcl 自体は秘密情報を含まないが .gitignore 対象なので、
+# 値はチームで別途共有すること。
+
+bucket  = "your-terraform-state-bucket"
+key     = "g5/dev/terraform.tfstate"
+region  = "ap-northeast-1"
+encrypt = true
