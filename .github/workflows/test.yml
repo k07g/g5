@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  unit-test:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -26,5 +26,23 @@ jobs:
       - name: Vet
         run: go vet ./...
 
-      - name: Test
-        run: go test ./... -race -cover
+      - name: Unit test
+        run: go test ./internal/config/... ./internal/auth/... ./internal/models/... ./internal/api/... -race -cover
+
+  integration-test:
+    needs: unit-test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # internal/db と internal/integration は実際のMongoDBコンテナを
+      # testcontainers-go で起動して検証するため、Dockerを使えるこの
+      # ジョブでのみ実行する(GitHub Actionsのubuntuランナーには標準搭載)。
+      - name: Integration test
+        run: go test ./internal/db/... ./internal/integration/... -race -cover
