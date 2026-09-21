@@ -87,10 +87,14 @@ g4 を `AUTH_PROVIDER=memory` で動かしている場合と組み合わせて�
 
 ## テストについて
 
-`go test ./...` はMongoDBなしで完結します。HTTPハンドラーのテストは
-`internal/db.CareerSheetRepository` の代わりにインメモリの fake
-(`internal/api/api_test.go`)を使って検証しており、これは認証層で
-`auth.MemoryVerifier` を使っているのと同じ考え方です。`internal/db` 自体は
-MongoDB公式ドライバ(v2)向けの軽量なモック手段が無いため自動テストを持たず、
-上記の「ローカルでの動作検証」の手順(`docker compose up -d mongo` + curl)で
-実際のMongoDBに対して動作確認しています。
+HTTPハンドラーのテストは `internal/db.CareerSheetRepository` の代わりに
+インメモリの fake(`internal/api/api_test.go`)を使って検証しており、これは
+認証層で `auth.MemoryVerifier` を使っているのと同じ考え方です。
+
+`internal/db`(MongoDBリポジトリ)は、MongoDB公式ドライバ(v2)に
+`database/sql` の `sqlmock` に相当する外部公開されたモック手段が無いため、
+[testcontainers-go](https://golang.testcontainers.org/) で実際のMongoDBコンテナを
+`go test` 実行時に自動起動・自動破棄して検証しています(`internal/db/career_sheets_test.go`
+の `TestMain`)。そのため `go test ./...` の実行にはDockerが必要です。Dockerが
+利用できない環境では、`internal/db` のテストはエラーではなくスキップ扱いになります
+(`go test` の標準出力に理由が表示されます)。
