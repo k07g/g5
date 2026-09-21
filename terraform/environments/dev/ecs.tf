@@ -53,6 +53,23 @@ resource "aws_iam_role_policy_attachment" "ecs_task_execution_managed" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# DBの接続文字列(DATABASE_URL)。g5はMongoDB/DocumentDBの採用を一旦見送り、
+# github.com/k07g/g4 が運用するRDS PostgreSQLインスタンスを暫定的に共用する
+# (#7で将来の分離・MongoDB移行を追跡)。g4のRDSにはg5専用のデータベース/
+# ロールを別途手動で作成し(terraform/README.md参照)、その接続文字列を
+# このシークレットに手動で登録する。Terraformはシークレットの入れ物だけを
+# 作り、値そのものはAWS CLI/コンソールから投入する(g4のRDSへネットワーク
+# 到達できないこのCI環境からは自動投入できないため)。
+resource "aws_secretsmanager_secret" "database_url" {
+  name                    = "${var.project_name}/dev/database-url"
+  recovery_window_in_days = 0
+
+  tags = {
+    Project   = var.project_name
+    ManagedBy = "terraform"
+  }
+}
+
 data "aws_iam_policy_document" "ecs_task_execution_secrets" {
   statement {
     effect = "Allow"
@@ -60,7 +77,7 @@ data "aws_iam_policy_document" "ecs_task_execution_secrets" {
       "secretsmanager:GetSecretValue",
     ]
     resources = [
-      aws_secretsmanager_secret.mongodb_uri.arn,
+      aws_secretsmanager_secret.database_url.arn,
     ]
   }
 }
@@ -146,11 +163,10 @@ resource "aws_ecs_task_definition" "app" {
         { name = "PORT", value = tostring(var.container_port) },
         { name = "AUTH_PROVIDER", value = "cognito" },
         { name = "AWS_REGION", value = var.aws_region },
-        { name = "MONGODB_DATABASE", value = var.mongodb_database },
       ]
 
       secrets = [
-        { name = "MONGODB_URI", valueFrom = aws_secretsmanager_secret.mongodb_uri.arn },
+        { name = "DATABASE_URL", valueFrom = aws_secretsmanager_secret.database_url.arn },
       ]
 
       logConfiguration = {
@@ -178,7 +194,7 @@ resource "aws_ecs_service" "app" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = aws_subnet.public[*].id
+    subnets          = var.g4_public_subnet_ids
     security_groups  = [aws_security_group.ecs_service.id]
     assign_public_ip = true
   }

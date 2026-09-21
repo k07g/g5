@@ -7,9 +7,9 @@ output "api_url" {
   value       = "http://${aws_lb.app.dns_name}"
 }
 
-output "docdb_cluster_endpoint" {
-  description = "DocumentDBクラスタのエンドポイント(参考情報。アプリはMONGODB_URIシークレット経由で接続するため設定不要)"
-  value       = aws_docdb_cluster.app.endpoint
+output "database_url_secret_arn" {
+  description = "DATABASE_URLの値を手動で投入するSecrets ManagerシークレットのARN(terraform/README.md参照)"
+  value       = aws_secretsmanager_secret.database_url.arn
 }
 
 output "ecs_cluster_name" {

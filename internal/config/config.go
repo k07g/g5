@@ -19,28 +19,23 @@ const (
 )
 
 type Config struct {
-	Port          string
-	AuthProvider  AuthProvider
-	AWSRegion     string
-	MongoURI      string
-	MongoDatabase string
+	Port         string
+	AuthProvider AuthProvider
+	AWSRegion    string
+	DatabaseURL  string
 }
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		Port:          getEnv("PORT", "8080"),
-		AuthProvider:  AuthProvider(getEnv("AUTH_PROVIDER", string(AuthProviderCognito))),
-		AWSRegion:     os.Getenv("AWS_REGION"),
-		MongoURI:      os.Getenv("MONGODB_URI"),
-		MongoDatabase: os.Getenv("MONGODB_DATABASE"),
+		Port:         getEnv("PORT", "8080"),
+		AuthProvider: AuthProvider(getEnv("AUTH_PROVIDER", string(AuthProviderCognito))),
+		AWSRegion:    os.Getenv("AWS_REGION"),
+		DatabaseURL:  os.Getenv("DATABASE_URL"),
 	}
 
 	var missing []string
-	if cfg.MongoURI == "" {
-		missing = append(missing, "MONGODB_URI")
-	}
-	if cfg.MongoDatabase == "" {
-		missing = append(missing, "MONGODB_DATABASE")
+	if cfg.DatabaseURL == "" {
+		missing = append(missing, "DATABASE_URL")
 	}
 
 	switch cfg.AuthProvider {

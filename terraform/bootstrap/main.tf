@@ -141,21 +141,17 @@ resource "aws_iam_role_policy" "terraform_ci" {
 # 認証情報(サインアップ/サインイン)はgithub.com/k07g/g4が持つCognito
 # ユーザープールを使い、このリポジトリではCognitoリソースを一切作成・
 # 変更しないため、cognito-idp系の権限はここには含めない。
+#
+# DBもg4が運用するRDSを暫定的に共用しており(#7参照)、g5自身はRDS/
+# DocumentDBインスタンスを一切作成しないため、rds:*/docdb:系の権限も
+# 含めていない。EC2Networkingのec2:*には、g4のRDSセキュリティグループに
+# ingressルールを追加する権限(ec2:AuthorizeSecurityGroupIngress)も
+# 含まれる。
 data "aws_iam_policy_document" "terraform_ci_dev_infra_permissions" {
   statement {
     sid       = "EC2Networking"
     effect    = "Allow"
     actions   = ["ec2:*"]
-    resources = ["*"]
-  }
-
-  statement {
-    # Amazon DocumentDBのAPI操作はRDSと同じコントロールプレーンを使い、
-    # IAMアクションも独立した"docdb:"名前空間ではなく"rds:"名前空間で
-    # 公開されている(専用のdocdb:名前空間は存在しない)。
-    sid       = "DocumentDBManagement"
-    effect    = "Allow"
-    actions   = ["rds:*"]
     resources = ["*"]
   }
 
@@ -198,14 +194,14 @@ data "aws_iam_policy_document" "terraform_ci_dev_infra_permissions" {
   }
 
   statement {
-    # DocumentDB/ECS/ELBをこのアカウントで初めて使う場合、各サービスの
-    # service-linked roleが自動作成される。作成者にiam:CreateServiceLinkedRole
-    # が必要なため、対象サービスに限定して許可する。
+    # ECS/ELBをこのアカウントで初めて使う場合、各サービスのservice-linked
+    # roleが自動作成される。作成者にiam:CreateServiceLinkedRoleが必要な
+    # ため、対象サービスに限定して許可する(RDSはg4が既に作成済みのはず
+    # なのでここには含めない)。
     sid     = "CreateAwsServiceLinkedRoles"
     effect  = "Allow"
     actions = ["iam:CreateServiceLinkedRole"]
     resources = [
-      "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/aws-service-role/rds.amazonaws.com/AWSServiceRoleForRDS",
       "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/aws-service-role/ecs.amazonaws.com/AWSServiceRoleForECS",
       "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing",
     ]
@@ -214,7 +210,6 @@ data "aws_iam_policy_document" "terraform_ci_dev_infra_permissions" {
       test     = "StringLike"
       variable = "iam:AWSServiceName"
       values = [
-        "rds.amazonaws.com",
         "ecs.amazonaws.com",
         "elasticloadbalancing.amazonaws.com",
       ]

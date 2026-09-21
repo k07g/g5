@@ -4,59 +4,58 @@ package models
 // CareerSheet mirror the TypeScript types in career-sheet's
 // src/types/career-sheet.ts (github.com/k07g/career-sheet) field for
 // field, so the JSON stored here round-trips through the frontend without
-// any translation layer. The bson tags mirror the json tags so the same
-// struct also serializes consistently when embedded in a MongoDB document.
+// any translation layer.
 
 type BasicInfo struct {
-	Name      string `json:"name" bson:"name"`
-	NameKana  string `json:"nameKana" bson:"nameKana"`
-	BirthDate string `json:"birthDate" bson:"birthDate"`
-	Email     string `json:"email" bson:"email"`
-	Phone     string `json:"phone" bson:"phone"`
-	Address   string `json:"address" bson:"address"`
+	Name      string `json:"name"`
+	NameKana  string `json:"nameKana"`
+	BirthDate string `json:"birthDate"`
+	Email     string `json:"email"`
+	Phone     string `json:"phone"`
+	Address   string `json:"address"`
 }
 
 type WorkExperience struct {
-	ID             string `json:"id" bson:"id"`
-	CompanyName    string `json:"companyName" bson:"companyName"`
-	EmploymentType string `json:"employmentType" bson:"employmentType"`
-	StartDate      string `json:"startDate" bson:"startDate"`
-	EndDate        string `json:"endDate" bson:"endDate"`
-	IsCurrent      bool   `json:"isCurrent" bson:"isCurrent"`
-	Position       string `json:"position" bson:"position"`
-	Description    string `json:"description" bson:"description"`
-	Technologies   string `json:"technologies" bson:"technologies"`
+	ID             string `json:"id"`
+	CompanyName    string `json:"companyName"`
+	EmploymentType string `json:"employmentType"`
+	StartDate      string `json:"startDate"`
+	EndDate        string `json:"endDate"`
+	IsCurrent      bool   `json:"isCurrent"`
+	Position       string `json:"position"`
+	Description    string `json:"description"`
+	Technologies   string `json:"technologies"`
 }
 
 type SkillItem struct {
-	ID       string `json:"id" bson:"id"`
-	Category string `json:"category" bson:"category"`
-	Name     string `json:"name" bson:"name"`
-	Level    string `json:"level" bson:"level"`
+	ID       string `json:"id"`
+	Category string `json:"category"`
+	Name     string `json:"name"`
+	Level    string `json:"level"`
 }
 
 type Education struct {
-	ID         string `json:"id" bson:"id"`
-	SchoolName string `json:"schoolName" bson:"schoolName"`
-	Major      string `json:"major" bson:"major"`
-	StartDate  string `json:"startDate" bson:"startDate"`
-	EndDate    string `json:"endDate" bson:"endDate"`
+	ID         string `json:"id"`
+	SchoolName string `json:"schoolName"`
+	Major      string `json:"major"`
+	StartDate  string `json:"startDate"`
+	EndDate    string `json:"endDate"`
 }
 
 type Certification struct {
-	ID           string `json:"id" bson:"id"`
-	Name         string `json:"name" bson:"name"`
-	AcquiredDate string `json:"acquiredDate" bson:"acquiredDate"`
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	AcquiredDate string `json:"acquiredDate"`
 }
 
 type CareerSheet struct {
-	BasicInfo       BasicInfo        `json:"basicInfo" bson:"basicInfo"`
-	Summary         string           `json:"summary" bson:"summary"`
-	WorkExperiences []WorkExperience `json:"workExperiences" bson:"workExperiences"`
-	Skills          []SkillItem      `json:"skills" bson:"skills"`
-	Educations      []Education      `json:"educations" bson:"educations"`
-	Certifications  []Certification  `json:"certifications" bson:"certifications"`
-	SelfPromotion   string           `json:"selfPromotion" bson:"selfPromotion"`
+	BasicInfo       BasicInfo        `json:"basicInfo"`
+	Summary         string           `json:"summary"`
+	WorkExperiences []WorkExperience `json:"workExperiences"`
+	Skills          []SkillItem      `json:"skills"`
+	Educations      []Education      `json:"educations"`
+	Certifications  []Certification  `json:"certifications"`
+	SelfPromotion   string           `json:"selfPromotion"`
 }
 
 // Normalize replaces nil slices with empty ones so a career sheet always

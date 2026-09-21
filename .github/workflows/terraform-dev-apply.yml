@@ -1,7 +1,8 @@
 name: Terraform Dev Apply
 
 # main にマージされ、dev環境のTerraformコードが変更された場合に、
-# dev環境のVPC/ALB/ECS Fargate/DocumentDBを自動で terraform apply する。
+# dev環境のALB/ECS Fargateを自動で terraform apply する。DBはg4のRDSを
+# 暫定的に共用しており(#7参照)、g5自身はVPC/RDSを作らない。
 on:
   push:
     branches: [main]
@@ -34,6 +35,12 @@ jobs:
       # 所有するdev環境ユーザープールのアクセストークンを検証するだけ
       # なので、そのARNを変数として渡す(terraform/README.md参照)。
       TF_VAR_cognito_user_pool_arn: ${{ vars.COGNITO_USER_POOL_ARN }}
+      # g5専用のVPCは持たず、g4のdev環境VPC/パブリックサブネットに
+      # ECS/ALBをデプロイし、g4のRDSセキュリティグループにingressルールを
+      # 追加する形でDBを共用する(terraform/README.md参照)。
+      TF_VAR_g4_vpc_id: ${{ vars.G4_VPC_ID }}
+      TF_VAR_g4_public_subnet_ids: ${{ vars.G4_PUBLIC_SUBNET_IDS }}
+      TF_VAR_g4_rds_security_group_id: ${{ vars.G4_RDS_SECURITY_GROUP_ID }}
     steps:
       - uses: actions/checkout@v7
 
