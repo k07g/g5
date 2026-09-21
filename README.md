@@ -87,14 +87,26 @@ g4 を `AUTH_PROVIDER=memory` で動かしている場合と組み合わせて�
 
 ## テストについて
 
-HTTPハンドラーのテストは `internal/db.CareerSheetRepository` の代わりに
-インメモリの fake(`internal/api/api_test.go`)を使って検証しており、これは
-認証層で `auth.MemoryVerifier` を使っているのと同じ考え方です。
+3種類のテストがあります。
 
-`internal/db`(MongoDBリポジトリ)は、MongoDB公式ドライバ(v2)に
-`database/sql` の `sqlmock` に相当する外部公開されたモック手段が無いため、
-[testcontainers-go](https://golang.testcontainers.org/) で実際のMongoDBコンテナを
-`go test` 実行時に自動起動・自動破棄して検証しています(`internal/db/career_sheets_test.go`
-の `TestMain`)。そのため `go test ./...` の実行にはDockerが必要です。Dockerが
-利用できない環境では、`internal/db` のテストはエラーではなくスキップ扱いになります
-(`go test` の標準出力に理由が表示されます)。
+- **単体テスト**(`internal/config`、`internal/auth`、`internal/models`、
+  `internal/api`)— 外部依存を使いません。`internal/api` のHTTPハンドラー
+  テストは `internal/db.CareerSheetRepository` の代わりにインメモリの fake
+  (`internal/api/api_test.go`)を、認証には `auth.MemoryVerifier` を使って
+  検証しています。
+- **リポジトリテスト**(`internal/db`)— MongoDB公式ドライバ(v2)には
+  `database/sql` の `sqlmock` に相当する外部公開されたモック手段が無いため、
+  [testcontainers-go](https://golang.testcontainers.org/) で実際のMongoDBコンテナを
+  `go test` 実行時に自動起動・自動破棄し、`CareerSheetRepository` 単体の
+  クエリ/更新ロジックを検証しています(`internal/db/career_sheets_test.go`)。
+- **結合テスト**(`internal/integration`)— ルーター・認証ミドルウェア・
+  MongoDBリポジトリを `cmd/server/main.go` と同じ組み方で実際に結線し、
+  実際のMongoDBコンテナ相手に `httptest.Server` 経由の本物のHTTPリクエストで
+  一連のライフサイクル(認証エラー→未保存→作成→取得→更新→別ユーザーからの
+  非可視性→削除→冪等な再削除)を検証しています(`internal/integration/server_test.go`)。
+  認証はCognitoの代わりに `auth.MemoryVerifier` を使っています(ローカル開発の
+  `AUTH_PROVIDER=memory` と同じ代替です。実AWSアカウントがCIに無いため)。
+
+`internal/db` と `internal/integration` の実行にはDockerが必要です。Dockerが
+利用できない環境では、エラーではなくスキップ扱いになります(`go test` の
+標準出力に理由が表示されます)。
