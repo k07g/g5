@@ -1,0 +1,21 @@
+services:
+  mongo:
+    image: mongo:8
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: g5
+      MONGO_INITDB_ROOT_PASSWORD: g5
+      MONGO_INITDB_DATABASE: g5
+    ports:
+      # Host port 27018 avoids clashing with a MongoDB instance that may
+      # already be listening on the default 27017 on the host machine.
+      - "27018:27017"
+    volumes:
+      - g5-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  g5-mongo-data:
