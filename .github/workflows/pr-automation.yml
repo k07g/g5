@@ -1,0 +1,75 @@
+name: PR automation
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  pr-automation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Assign PR author
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+
+            // dependabot[bot] 等のBotアカウントはリポジトリの
+            // assignee候補になれずaddAssigneesが失敗するためスキップする
+            if (pr.user.type === "Bot") {
+              core.info(`Skipping assignment: PR author "${pr.user.login}" is a bot`);
+              return;
+            }
+
+            await github.rest.issues.addAssignees({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              assignees: [pr.user.login],
+            });
+
+      - name: Label PR based on branch name
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const branch = pr.head.ref;
+
+            // ブランチ名のプレフィックスとラベルの対応。
+            // 存在しないラベルは addLabels 実行時に自動作成される。
+            const rules = [
+              { pattern: /^feat(ure)?\//, label: "feature" },
+              { pattern: /^(bug)?fix\//, label: "bug" },
+              { pattern: /^hotfix\//, label: "hotfix" },
+              { pattern: /^release\//, label: "release" },
+              { pattern: /^docs?\//, label: "documentation" },
+              { pattern: /^refactor\//, label: "refactor" },
+              { pattern: /^tests?\//, label: "test" },
+              { pattern: /^chore\//, label: "chore" },
+              { pattern: /^ci\//, label: "ci" },
+              { pattern: /^perf(ormance)?\//, label: "performance" },
+              { pattern: /^build\//, label: "build" },
+              { pattern: /^infra(structure)?\//, label: "infra" },
+            ];
+
+            const labels = [...new Set(
+              rules.filter((rule) => rule.pattern.test(branch)).map((rule) => rule.label)
+            )];
+
+            if (labels.length === 0) {
+              core.info(`No label rule matched branch "${branch}"`);
+              return;
+            }
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              labels,
+            });
